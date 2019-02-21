@@ -402,3 +402,37 @@ void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent )
         esp_event_send(&evt);
     }
 }
+
+/* Called automatically when a reply to an outgoing ping is received. */
+void vApplicationPingReplyHook( ePingReplyStatus_t eStatus, uint16_t usIdentifier )
+{
+static const char *pcSuccess = "Ping reply received - ";
+static const char *pcInvalidChecksum = "Ping reply received with invalid checksum - ";
+static const char *pcInvalidData = "Ping reply received with invalid data - ";
+
+    configPRINTF( ("vApplicationPingReplyHook \n\r") );
+    switch( eStatus )
+    {
+        case eSuccess   :
+            FreeRTOS_printf( ( pcSuccess ) );
+            break;
+
+        case eInvalidChecksum :
+            FreeRTOS_printf( ( pcInvalidChecksum ) );
+            break;
+
+        case eInvalidData :
+            FreeRTOS_printf( ( pcInvalidData ) );
+            break;
+
+        default :
+            /* It is not possible to get here as all enums have their own
+            case. */
+            break;
+    }
+
+    FreeRTOS_debug_printf( ( "identifier %d\r\n", ( int ) usIdentifier ) );
+
+    /* Prevent compiler warnings in case FreeRTOS_debug_printf() is not defined. */
+    ( void ) usIdentifier;
+}

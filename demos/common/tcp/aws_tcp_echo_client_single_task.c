@@ -53,6 +53,10 @@
 /* Demo configuration */
 #include "aws_demo_config.h"
 
+#include "aws_clientcredential.h"
+#include "aws_wifi.h"
+#include "esp_sleep.h"
+
 /* Dimensions the buffer used to generate the task name. */
 #define echoMAX_TASK_NAME_LENGTH    8
 
@@ -134,6 +138,9 @@ static void prvEchoClientTask( void * pvParameters );
 static BaseType_t prvCreateTxData( char * ucBuffer,
                                    uint32_t ulBufferLength );
 
+static void check_and_connect_to_wifi_if_disconnected(void);
+static bool check_and_disconnect_if_connected(void);
+
 /*-----------------------------------------------------------*/
 
 /* Rx and Tx time outs are used to ensure the sockets do not wait too long for
@@ -214,6 +221,9 @@ static void prvEchoClientTask( void * pvParameters )
 
     for( ; ; )
     {
+
+        check_and_connect_to_wifi_if_disconnected();
+
         /* Create a TCP socket. */
         xSocket = SOCKETS_Socket( SOCKETS_AF_INET, SOCKETS_SOCK_STREAM, SOCKETS_IPPROTO_TCP );
         configASSERT( xSocket != SOCKETS_INVALID_SOCKET );
@@ -377,6 +387,15 @@ static void prvEchoClientTask( void * pvParameters )
         /* Pause for a short while to ensure the network is not too
          * congested. */
         vTaskDelay( echoLOOP_DELAY );
+
+        if (check_and_disconnect_if_connected())
+        {
+            #define MS_TO_USECS(ms) ((ms) * 1000u)
+            #define SECS_TO_MS(secs) ((secs) * 1000u)
+            configPRINTF( ( "Sleeping...\r\n" ) );
+            esp_sleep_enable_timer_wakeup(MS_TO_USECS(100));
+            configPRINTF( ( "Woke up!\r\n"));
+        }
     }
 }
 /*-----------------------------------------------------------*/
@@ -441,4 +460,72 @@ BaseType_t xAreSingleTaskTCPEchoClientsStillRunning( void )
     }
 
     return xReturn;
+}
+
+
+static void check_and_connect_to_wifi_if_disconnected(void)
+{
+    WIFINetworkParams_t xNetworkParams;
+    WIFIReturnCode_t xWifiStatus;
+
+    if (WIFI_IsConnected() == pdTRUE)
+    {
+        configPRINTF( ( "WiFi is already connected.\r\n"));
+        return;
+    }
+
+    xWifiStatus = WIFI_On();
+
+    if( xWifiStatus == eWiFiSuccess )
+    {
+        configPRINTF( ( "WiFi module initialized. Connecting to AP %s...\r\n", clientcredentialWIFI_SSID ) );
+    }
+    else
+    {
+        configPRINTF( ( "WiFi module failed to initialize.\r\n" ) );
+        return;
+    }
+
+    /* Setup parameters. */
+    xNetworkParams.pcSSID = clientcredentialWIFI_SSID;
+    xNetworkParams.ucSSIDLength = sizeof( clientcredentialWIFI_SSID );
+    xNetworkParams.pcPassword = clientcredentialWIFI_PASSWORD;
+    xNetworkParams.ucPasswordLength = sizeof( clientcredentialWIFI_PASSWORD );
+    xNetworkParams.xSecurity = clientcredentialWIFI_SECURITY;
+
+    configPRINTF( ( "Connecting to AP.\r\n"));
+    xWifiStatus = WIFI_ConnectAP( &( xNetworkParams ) );
+
+    if( xWifiStatus == eWiFiSuccess )
+    {
+        configPRINTF( ( "WiFi Connected to AP. Creating tasks which use network...\r\n" ) );
+    }
+    else
+    {
+        configPRINTF( ( "WiFi failed to connect to AP.\r\n" ) );
+        return;
+    }
+}
+
+static bool check_and_disconnect_if_connected(void)
+{
+    bool successfully_disconnected = false;
+    if (WIFI_IsConnected() == pdTRUE)
+    {
+        configPRINTF( ( "Wifi is disconnected AP.\r\n" ) );
+        if (WIFI_Disconnect() == eWiFiSuccess)
+        {
+            configPRINTF( ( "Making sure Wifi is disconnected AP.\r\n" ) );
+            if (WIFI_Off() == eWiFiSuccess)
+            {
+                configPRINTF( ( "Wifi turned off.\r\n" ) );
+                successfully_disconnected = true;
+            }
+        }
+    }
+    else
+    {
+        successfully_disconnected = true;
+    }
+    return successfully_disconnected;
 }

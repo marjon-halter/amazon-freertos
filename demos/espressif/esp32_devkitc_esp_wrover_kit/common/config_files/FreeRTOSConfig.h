@@ -236,10 +236,10 @@
  * tasks:
  * http://www.freertos.org/FreeRTOS-Plus/FreeRTOS_Plus_TCP/TCP_Echo_Clients.html,
  * http://www.freertos.org/FreeRTOS-Plus/FreeRTOS_Plus_TCP/UDP_Echo_Clients.html. */
-#define configECHO_SERVER_ADDR0              192
-#define configECHO_SERVER_ADDR1              168
+#define configECHO_SERVER_ADDR0              10
+#define configECHO_SERVER_ADDR1              2
 #define configECHO_SERVER_ADDR2              2
-#define configECHO_SERVER_ADDR3              7
+#define configECHO_SERVER_ADDR3              48
 #define configTCP_ECHO_CLIENT_PORT           7
 
 /* Default MAC address configuration.  The demo creates a virtual network
